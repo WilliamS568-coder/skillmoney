@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@theme {
+  --color-dark-bg: #0b0c1b;      /* Deep navy background */
+  --color-card-bg: #13152a;      /* Input background */
+  --color-brand-purple: #5956f6; /* Main glowing purple button */
+  --color-brand-purple-hover: #4743db;
+  --color-text-muted: #8b8eaf;   /* Pale bluish-gray subtitle text */
+}
+
+body {
+  background-color: #0b0c1b;
+  margin: 0;
+  font-family: sans-serif;
+}
