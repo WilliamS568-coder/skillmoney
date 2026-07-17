@@ -117,7 +117,7 @@ export default function Register({ onSwitchToLogin }) {
           }
         }
 
-        toast.success("Account created successfully! Please check your email to confirm your account.");
+        toast.success("Account created successfully! Please Login.");
         onSwitchToLogin();
       }
     } catch (error) {
