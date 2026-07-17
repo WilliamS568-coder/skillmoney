@@ -18,6 +18,11 @@
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^7.18.1"
   },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "serve": "serve -s dist"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/react": "^19.2.17",
@@ -32,9 +37,4 @@
     "tailwindcss": "^4.3.2",
     "vite": "^8.1.1"
   }
-}
-"scripts": {
-  "dev": "vite",
-  "build": "tsc -b && vite build",
-  "serve": "serve -s dist"
 }
