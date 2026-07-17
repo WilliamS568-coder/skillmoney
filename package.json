@@ -33,3 +33,8 @@
     "vite": "^8.1.1"
   }
 }
+"scripts": {
+  "dev": "vite",
+  "build": "tsc -b && vite build",
+  "serve": "serve -s dist"
+}
