@@ -2,11 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Home, ShoppingCart, CheckSquare, Users, User, LogOut, MoreVertical, FileText, X } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { toast } from 'react-hot-toast';
-import HomeView from './dashboard/HomeView';
-import EarnView from './dashboard/EarnView';
-import TaskView from './dashboard/TaskView';
-import InviteView from './dashboard/InviteView';
-import WithdrawView from './dashboard/WithdrawView';
+import HomeView from './Dashboard/HomeView';
+import EarnView from './Dashboard/EarnView';
+import TaskView from './Dashboard/TaskView';
+import InviteView from './Dashboard/InviteView';
+import WithdrawView from './Dashboard/WithdrawView';
 import WelcomeModal from './WelcomeModal';
 
 export default function Dashboard({ user }) {
