@@ -31,9 +31,6 @@
     "globals": "^17.7.0",
     "postcss": "^8.5.19",
     "tailwindcss": "^4.3.2",
-    "vite": "^8.1.1"
-  },
-  "optionalDependencies": {
-    "@rolldown/binding-linux-x64-gnu": "1.2.0"
+    "vite": "^6.0.0"
   }
 }
