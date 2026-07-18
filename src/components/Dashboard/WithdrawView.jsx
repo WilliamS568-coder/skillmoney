@@ -21,13 +21,28 @@ const Modal = ({ isOpen, onClose, title, children }) => {
   );
 };
 
-export default function Mine({ profile, setProfile }) {
+export default function WithdrawView({ profile, setProfile }) {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showRecharge, setShowRecharge] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawPass, setWithdrawPass] = useState('');
   const [selectedPayment, setSelectedPayment] = useState('PAY-1');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  
+  // Payment method details
+  const paymentDetails = {
+    'PAY-1': {
+      bankName: 'OPay',
+      accountName: 'SOLOMON DAMILARE TOWOLAWI',
+      accountNumber: '656 349 6529'
+    },
+    'PAY-2': {
+      bankName: 'USDT (BEP20)',
+      accountName: 'Wallet Address',
+      accountNumber: '0xa9E74E48F2e5B463664BC59E0aE3ea19f7c7603D'
+    }
+  };
   const [rechargeAmount, setRechargeAmount] = useState('0.00');
   const [showAccountDetails, setShowAccountDetails] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -40,6 +55,10 @@ export default function Mine({ profile, setProfile }) {
     account_number: '',
     account_name: ''
   });
+  const [showPlatformRulesModal, setShowPlatformRulesModal] = useState(false);
+  const [purchases, setPurchases] = useState([]);
+  const [dailyIncome, setDailyIncome] = useState(0);
+  const [dailyIncomeEnabled, setDailyIncomeEnabled] = useState(false);
 
   useEffect(() => {
     const fetchProfileAndTransactions = async () => {
@@ -121,8 +140,6 @@ export default function Mine({ profile, setProfile }) {
     fetchProfileAndTransactions();
   }, []);
 
-  const [withdrawAmount, setWithdrawAmount] = useState('');
-  
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount);
     
@@ -348,6 +365,11 @@ export default function Mine({ profile, setProfile }) {
     }
   };
 
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    toast.success('Copied to clipboard!');
+  };
+
   const handleSaveBankDetails = async () => {
     if (!bankDetails.bank_name || !bankDetails.account_number || !bankDetails.account_name) {
       toast.error('Please fill all bank details');
@@ -380,11 +402,6 @@ export default function Mine({ profile, setProfile }) {
   const handlePlatformRules = () => {
     setShowPlatformRulesModal(true);
   };
-
-  const [showPlatformRulesModal, setShowPlatformRulesModal] = useState(false);
-  const [purchases, setPurchases] = useState([]);
-  const [dailyIncome, setDailyIncome] = useState(0);
-  const [dailyIncomeEnabled, setDailyIncomeEnabled] = useState(false);
 
   const handleCustomerService = () => {
     window.open('https://t.me/+bXqOsMT73P02YjI0', '_blank');
@@ -529,19 +546,15 @@ export default function Mine({ profile, setProfile }) {
 
       // Check if already claimed today
       const today = new Date().toISOString().split('T')[0];
-    // In claimDailyIncome, change this:
-const { data: existingClaim, error: claimCheckError } = await supabase
-  .from('daily_income_claims')
-  .select('id')
-  .eq('user_id', user.id)
-  .eq('purchase_id', parseInt(purchase.id)) // Explicitly parse as integer
-  .gte('claim_date', today);
-// Use the array length check instead:
-if (existingClaim && existingClaim.length > 0) {
-  return; // Already claimed today
-}
+      const { data: existingClaim } = await supabase
+        .from('daily_income_claims')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('purchase_id', purchase.id)
+        .gte('claim_date', today)
+        .limit(1);
 
-      if (existingClaim) {
+      if (existingClaim && existingClaim.length > 0) {
         return; // Already claimed today
       }
 
@@ -633,7 +646,8 @@ if (existingClaim && existingClaim.length > 0) {
   };
 
   return (
-    <div className="min-h-screen bg-[#07080e] text-white p-4 pb-24">
+    <div className="min-h-screen bg-[#07080e] text-white p-4 md:p-6 pb-24 md:pb-6">
+      <div className="max-w-2xl mx-auto">
       
       {/* USER PROFILE SECTION */}
       <div className="bg-[#0d0e16] border border-slate-900 rounded-2xl p-5 mb-4">
@@ -792,6 +806,8 @@ if (existingClaim && existingClaim.length > 0) {
         ))}
       </div>
 
+      </div>
+
       {/* Modals */}
       <Modal isOpen={showRecharge} onClose={() => {setShowRecharge(false); setShowAccountDetails(false);}} title="">
         {!showAccountDetails ? (
@@ -832,9 +848,8 @@ if (existingClaim && existingClaim.length > 0) {
               <h3 className="text-sm font-bold text-gray-300 mb-3">Select Payment Method</h3>
               <div className="space-y-2.5">
                 {[
-                  { id: 'PAY-1', label: 'PAY-1', recommended: true },
-                  { id: 'PAY-3', label: 'PAY-3', recommended: true },
-                  { id: 'PAY-2', label: 'PAY-2', recommended: false }
+                  { id: 'PAY-1', label: 'PAY-1 (Bank Transfer)', recommended: true },
+                  { id: 'PAY-2', label: 'PAY-2 (USDT)', recommended: false }
                 ].map((method) => (
                   <button
                     key={method.id}
@@ -904,15 +919,26 @@ if (existingClaim && existingClaim.length > 0) {
             <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-5 mb-4 space-y-3">
               <div>
                 <p className="text-xs text-gray-400 mb-1">Bank Name</p>
-                <p className="text-sm font-bold text-white">First City Monument Bank (FCMB)</p>
+                <p className="text-sm font-bold text-white">{paymentDetails[selectedPayment]?.bankName}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400 mb-1">Account Name</p>
-                <p className="text-sm font-bold text-white">Skill Money Platform Ltd</p>
+                <p className="text-sm font-bold text-white">{paymentDetails[selectedPayment]?.accountName}</p>
               </div>
               <div>
                 <p className="text-xs text-gray-400 mb-1">Account Number</p>
-                <p className="text-sm font-bold text-white font-mono">1234567890</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-bold text-white font-mono break-all flex-1">{paymentDetails[selectedPayment]?.accountNumber}</p>
+                  <button
+                    onClick={() => copyToClipboard(paymentDetails[selectedPayment]?.accountNumber)}
+                    className="p-2 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors shrink-0"
+                    title="Copy to clipboard"
+                  >
+                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </button>
+                </div>
               </div>
               <div>
                 <p className="text-xs text-gray-400 mb-1">Amount</p>

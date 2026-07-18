@@ -22,7 +22,7 @@ export default function EarnView({ profile, setProfile }) {
     {
       id: 2,
       vip: 'VIP 2',
-      image: 'https://images.unsplash.com/photo-1519861531473-92002639313cc?w=400&h=400&fit=crop',
+      image: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400&h=400&fit=crop',
       price: 10000,
       dailyIncome: 2631,
       totalIncome: 78930,
@@ -140,7 +140,7 @@ export default function EarnView({ profile, setProfile }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 md:pb-6">
       <div>
         <h1 className="text-2xl font-extrabold mb-1">Product</h1>
         <p className="text-gray-400 text-sm">Browse and purchase products to start earning.</p>
