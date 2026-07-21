@@ -80,8 +80,9 @@ export default function MyTeam() {
 
   // Your real system deployment link
   // Automatically uses the exact domain name you used to visit the website!
-const referralLink = profile?.username 
-  ? `${window.location.origin}/register?ref=${profile.username}` 
+// Change to this so it uses the referral_code you generated:
+const referralLink = profile?.referral_code 
+  ? `${window.location.origin}/register?ref=${profile.referral_code}` 
   : '';
   const copyToClipboard = () => {
     if (!referralLink) return;
