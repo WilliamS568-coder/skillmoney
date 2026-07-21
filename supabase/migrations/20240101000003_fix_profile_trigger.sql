@@ -14,6 +14,7 @@ BEGIN
     email,
     referral_code,
     balance,
+    is_new_user,
     created_at,
     updated_at
   )
@@ -22,7 +23,8 @@ BEGIN
     NEW.raw_user_meta_data->>'full_name',  -- Get full_name from auth metadata
     NEW.email,
     'REF' || substr(md5(random()::text), 1, 8),  -- Generate unique referral code
-    0,
+    1000,  -- Welcome bonus of 1000 NGN
+    true,
     NOW(),
     NOW()
   );

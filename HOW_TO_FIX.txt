@@ -1,0 +1,45 @@
+═══════════════════════════════════════════════════════════════
+  HOW TO FIX THE 1K WELCOME BONUS - FOLLOW THESE STEPS
+═══════════════════════════════════════════════════════════════
+
+STEP 1: Open the file named "RUN_THIS_IN_SUPABASE.sql"
+        (It's in your project folder)
+
+STEP 2: Copy ALL the code inside that file
+        (Select all with Ctrl+A, then Ctrl+C)
+
+STEP 3: Go to your Supabase website
+        • Open: https://supabase.com/dashboard
+        • Log in to your account
+        • Click on your project
+
+STEP 4: Open the SQL Editor
+        • Look at the LEFT MENU
+        • Click on "SQL Editor" 
+        • Click "New Query" button
+
+STEP 5: Paste the code
+        • Paste the code you copied (Ctrl+V)
+        • Click the "RUN" button (or press Ctrl+Enter)
+
+STEP 6: Wait for success message
+        • You should see "Success. No rows returned"
+        • If you see errors, take a screenshot
+
+STEP 7: Test it!
+        • Open your app
+        • Register a NEW account (use incognito/private mode)
+        • Login with that new account
+        • You should see ₦1,000 balance!
+
+═══════════════════════════════════════════════════════════════
+  THAT'S IT! The 1K welcome bonus should now work! 🎉
+═══════════════════════════════════════════════════════════════
+
+If it doesn't work:
+1. Make sure you copied ALL the code from RUN_THIS_IN_SUPABASE.sql
+2. Make sure you clicked RUN in Supabase
+3. Try registering with a completely new email
+4. Check if you see any error messages
+
+Need help? Check the SETUP_GUIDE.md file for more details.

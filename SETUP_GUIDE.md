@@ -1,197 +1,198 @@
-# Skill Money - Admin Panel Setup Guide
+# Skill Money - Welcome Bonus Fix Guide
 
-## 🔧 Database Setup (REQUIRED)
+## Problem
+The 1K welcome bonus was not working for new users.
 
-### Step 1: Create Tables and Enable RLS
+## Root Causes
+1. **Missing database column**: The `balance` column didn't exist in the `profiles` table
+2. **Wrong trigger value**: The database trigger was setting `balance: 0` instead of `balance: 1000`
+3. **Missing RLS policies**: No Row Level Security policies for the `profiles` table
 
-Go to your **Supabase Dashboard** → **SQL Editor** and run these commands:
+## Solution Applied
+
+### 1. Created Database Migration for Balance Column
+**File**: `supabase/migrations/20240101000009_add_balance_to_profiles.sql`
+- Adds `balance` column (DECIMAL 10,2) to profiles table
+- Sets default value to 0
+- Creates index for faster queries
+- Updates existing NULL balances to 0
+
+### 2. Fixed Database Trigger
+**File**: `supabase/migrations/20240101000003_fix_profile_trigger.sql`
+- Changed balance from `0` to `1000` (welcome bonus)
+- Added `is_new_user: true` flag
+- New users now automatically get ₦1,000 on registration
+
+### 3. Added RLS Policies
+**File**: `supabase/migrations/20240101000010_add_rls_policies_for_profiles.sql`
+- Enables Row Level Security on profiles table
+- Allows users to view/update their own profile
+- Allows anonymous users to insert during registration
+
+## How to Apply the Fix
+
+### Step 1: Run Migrations in Supabase
+
+1. Go to your Supabase dashboard: https://supabase.com/dashboard
+2. Select your project
+3. Go to **SQL Editor** (left sidebar)
+4. Click **New Query**
+5. Run each migration file in order:
 
 ```sql
--- 1. Create recharge_requests table
-CREATE TABLE IF NOT EXISTS recharge_requests (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  amount DECIMAL(10, 2) NOT NULL,
-  receipt_url TEXT NOT NULL,
-  payment_method TEXT NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
-);
+-- Run this first (if not already run)
+-- supabase/migrations/20240101000009_add_balance_to_profiles.sql
+ALTER TABLE profiles 
+ADD COLUMN IF NOT EXISTS balance DECIMAL(10, 2) DEFAULT 0;
 
--- 2. Create indexes
-CREATE INDEX IF NOT EXISTS idx_recharge_requests_user_id ON recharge_requests(user_id);
-CREATE INDEX IF NOT EXISTS idx_recharge_requests_status ON recharge_requests(status);
+CREATE INDEX IF NOT EXISTS idx_profiles_balance ON profiles(balance);
 
--- 3. Enable Row Level Security
-ALTER TABLE recharge_requests ENABLE ROW LEVEL SECURITY;
-
--- 4. Create policies for recharge_requests
-CREATE POLICY "Users can view their own recharge requests"
-  ON recharge_requests
-  FOR SELECT
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own recharge requests"
-  ON recharge_requests
-  FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Authenticated users can view all recharge requests"
-  ON recharge_requests
-  FOR SELECT
-  USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Authenticated users can update recharge requests"
-  ON recharge_requests
-  FOR UPDATE
-  USING (auth.role() = 'authenticated');
+UPDATE profiles 
+SET balance = 0 
+WHERE balance IS NULL;
 ```
 
-### Step 2: Create Storage Bucket for Receipts
-
-1. Go to **Supabase Dashboard** → **Storage**
-2. Click **New bucket**
-3. Name: `receipts`
-4. Set as **Public**: ✅ Yes
-5. Click **Create**
-
-### Step 3: Run Storage Policies
-
-In **SQL Editor**, run:
-
 ```sql
--- Allow authenticated users to upload receipts
-CREATE POLICY "Authenticated users can upload receipts"
-  ON storage.objects
-  FOR INSERT
-  WITH CHECK (
-    bucket_id = 'receipts'
-    AND auth.role() = 'authenticated'
-  );
+-- Run this second
+-- supabase/migrations/20240101000003_fix_profile_trigger.sql
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 
--- Allow public to view receipts
-CREATE POLICY "Public can view receipts"
-  ON storage.objects
-  FOR SELECT
-  USING (bucket_id = 'receipts');
-
--- Allow users to update their own receipts
-CREATE POLICY "Users can update their own receipts"
-  ON storage.objects
-  FOR UPDATE
-  USING (
-    bucket_id = 'receipts'
-    AND auth.uid()::text = (storage.foldername(name))[1]
+CREATE OR REPLACE FUNCTION handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (
+    id,
+    full_name,
+    email,
+    referral_code,
+    balance,
+    is_new_user,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    NEW.id,
+    NEW.raw_user_meta_data->>'full_name',
+    NEW.email,
+    'REF' || substr(md5(random()::text), 1, 8),
+    1000,  -- Welcome bonus of 1000 NGN
+    true,
+    NOW(),
+    NOW()
   );
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION handle_new_user();
+
+UPDATE profiles 
+SET full_name = 'User'
+WHERE full_name IS NULL;
 ```
 
-### Step 4: Fix Profiles Table RLS (IMPORTANT!)
-
-The issue with only 1 user showing is because the `profiles` table has RLS enabled. You need to create a policy to allow admins to view all users:
-
 ```sql
--- Allow authenticated users to view all profiles (for admin panel)
-CREATE POLICY "Authenticated users can view all profiles"
-  ON profiles
-  FOR SELECT
-  USING (auth.role() = 'authenticated');
+-- Run this third
+-- supabase/migrations/20240101000010_add_rls_policies_for_profiles.sql
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
--- Allow users to update their own profile
-CREATE POLICY "Users can update their own profile"
-  ON profiles
-  FOR UPDATE
+CREATE POLICY "Users can view their own profile"
+  ON profiles FOR SELECT
+  TO authenticated
   USING (auth.uid() = id);
+
+CREATE POLICY "Users can insert their own profile"
+  ON profiles FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile"
+  ON profiles FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = id)
+  WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Allow anonymous insert for registration"
+  ON profiles FOR INSERT
+  TO anon
+  WITH CHECK (true);
 ```
 
-## 🔐 How to Access Admin Panel
+### Step 2: Test the Fix
 
-### Method 1: Via URL (Current Method)
+1. Open your app in the browser
+2. Register a new account
+3. After login, check the dashboard balance
+4. You should see **₦1,000** as your starting balance
+5. The welcome modal should appear confirming the bonus
 
-1. Log in with an admin account
-2. Navigate to: `http://localhost:5173/#admin`
-3. The admin panel will show automatically
+## What Happens Now
 
-### Method 2: Make Your Account Admin
+### For New Users:
+1. User registers with email/password
+2. Database trigger automatically creates profile with:
+   - `balance: 1000` (1K welcome bonus)
+   - `is_new_user: true`
+3. User logs in and sees welcome modal
+4. Balance displays as ₦1,000 in dashboard
 
-**Option A - Update email in code:**
-Edit `src/App.jsx` line 63 and add your email:
-```javascript
-const isAdminUser = user.user_metadata?.role === 'admin' || 
-                    user.email === 'towolawisolomon111@gmail.com' ||
-                    user.email === 'your-email@example.com';
+### For Existing Users:
+- Their balance remains unchanged
+- They won't see the welcome modal (already marked as not new)
+
+## Verification
+
+Check your Supabase database:
+```sql
+-- Verify the balance column exists
+SELECT column_name, data_type, column_default 
+FROM information_schema.columns 
+WHERE table_name = 'profiles' 
+AND column_name = 'balance';
+
+-- Verify a test user has the bonus
+SELECT id, email, balance, is_new_user 
+FROM profiles 
+WHERE email = 'your-test-email@example.com';
 ```
 
-**Option B - Set admin role in Supabase:**
-1. Go to **Supabase Dashboard** → **Authentication** → **Users**
-2. Find your user and click **Edit**
-3. In **User Metadata** (JSON), add: `{"role": "admin"}`
-4. Save
+## Troubleshooting
 
-## 🎯 Complete User Flow
+### If balance is still 0:
+1. Make sure you ran ALL three migrations in order
+2. Check Supabase logs for any errors
+3. Verify the trigger exists: 
+   ```sql
+   SELECT * FROM pg_trigger WHERE tgname = 'on_auth_user_created';
+   ```
 
-### Recharge Flow:
-1. User clicks **"Recharge"** button
-2. Enters amount (minimum ₦5,000)
-3. Selects payment method (PAY-1, PAY-2, PAY-3)
-4. Views bank account details (FCMB)
-5. Clicks **"I have made the transfer"**
-6. Uploads receipt screenshot
-7. Sees success message: "Receipt submitted! Waiting for admin approval"
-8. Dashboard shows yellow alert: "PENDING RECHARGE"
+### If registration fails:
+1. Check RLS policies are correctly applied
+2. Verify the `profiles` table allows inserts from `anon` role
+3. Check browser console for error messages
 
-### Admin Approval Flow:
-1. Admin navigates to `/#admin`
-2. Clicks **"Recharges"** tab
-3. Sees all recharge requests with:
-   - User name & email
-   - Amount
-   - Payment method
-   - Receipt button (click to view)
-   - Status badge
-4. Clicks **✓** to approve (adds balance to user)
-5. Or clicks **✗** to reject
+### If welcome modal doesn't show:
+1. Verify `is_new_user` column exists and is set to `true`
+2. Check Dashboard.jsx is reading the profile correctly
+3. Clear browser cache and test with incognito mode
 
-## 🐛 Troubleshooting
+## Files Modified
 
-### Issue: "Failed to load resource: server responded with 400"
-**Solution**: Run the SQL migration in Step 1
+1. ✅ `supabase/migrations/20240101000009_add_balance_to_profiles.sql` - NEW
+2. ✅ `supabase/migrations/20240101000003_fix_profile_trigger.sql` - UPDATED
+3. ✅ `supabase/migrations/20240101000010_add_rls_policies_for_profiles.sql` - NEW
+4. ✅ `src/components/register.jsx` - Already had balance: 1000 (no changes needed)
+5. ✅ `src/components/WelcomeModal.jsx` - Already displays welcome message (no changes needed)
+6. ✅ `src/components/Dashboard.jsx` - Already shows modal for new users (no changes needed)
 
-### Issue: "Only 1 user showing in admin panel"
-**Solution**: Run the RLS policies in Step 4
+## Support
 
-### Issue: "Receipt not showing"
-**Solution**: 
-1. Make sure you created the `receipts` storage bucket
-2. Run the storage policies in Step 3
-
-### Issue: "Error fetching recharge requests"
-**Solution**: The table doesn't exist yet. Run the SQL in Step 1.
-
-## 📊 Database Schema
-
-### recharge_requests table:
-- `id` - UUID primary key
-- `user_id` - References auth.users(id)
-- `amount` - Recharge amount
-- `receipt_url` - URL to uploaded receipt in storage
-- `payment_method` - PAY-1, PAY-2, or PAY-3
-- `status` - pending, approved, or rejected
-- `created_at` - Timestamp
-- `updated_at` - Timestamp
-
-### Storage Bucket: `receipts`
-- Public bucket for storing receipt images
-- Files named: `{user_id}-{timestamp}.{extension}`
-
-## ✅ Verification Checklist
-
-- [ ] Ran SQL migration to create `recharge_requests` table
-- [ ] Created `receipts` storage bucket (public)
-- [ ] Ran storage policies SQL
-- [ ] Ran profiles RLS policies SQL
-- [ ] Added your email to admin check in App.jsx (or set admin role in Supabase)
-- [ ] Tested recharge flow as regular user
-- [ ] Tested admin panel access at `/#admin`
-- [ ] Verified receipt upload works
-- [ ] Verified admin can approve/reject recharges
+If you encounter issues:
+1. Check the Supabase dashboard logs
+2. Verify all migrations ran successfully
+3. Test with a fresh registration (use incognito mode)
+4. Check browser console for frontend errors
